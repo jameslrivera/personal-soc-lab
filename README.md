@@ -22,7 +22,7 @@ A hands-on security operations center (SOC) lab that demonstrates end-to-end log
 - Homebrew (**macOS**) or Chocolatey (**Windows**) to install Filebeat & Packetbeat  
 - Git
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Clone this repo**  
    ```bash
