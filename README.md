@@ -121,10 +121,9 @@ Generate passwords if needed (see `docs/setup.md`).
 
 
 `winlogbeat.event_logs:
-  - name: Application
-  - name: System
-  - name: Security
-
+    name: Application
+    name: System
+    name: Security
 output.elasticsearch:
   hosts: ["<your_mac_ip>:9200"]
   username: "elastic"
