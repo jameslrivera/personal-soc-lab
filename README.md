@@ -119,8 +119,8 @@ Generate passwords if needed (see `docs/setup.md`).
 2. Unzip to: `C:\Winlogbeat`  
 3. Edit `winlogbeat.yml` (run Notepad as **Administrator**):
 
-``yaml
-winlogbeat.event_logs:
+
+`winlogbeat.event_logs:
   - name: Application
   - name: System
   - name: Security
@@ -129,14 +129,14 @@ output.elasticsearch:
   hosts: ["<your_mac_ip>:9200"]
   username: "elastic"
   password: "<your_password>"
-  ssl.verification_mode: none
+  ssl.verification_mode: none`
   
 4. In PowerShell (Admin):
 
-cd C:\Winlogbeat
+`cd C:\Winlogbeat
 .\install-service-winlogbeat.ps1
 Start-Service winlogbeat
-.\winlogbeat.exe setup -e
+.\winlogbeat.exe setup -e`
 
 ### 5. Make Windows Machine Vulnerable
 
