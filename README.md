@@ -1,154 +1,110 @@
 # Personal SOC Lab
 
-## Project Overview
+I created this project to learn about and get hands on expierence with SIEM systems and their tools. This project was built from the ideas of industry standard SOC(Security Operations Center) labs, and modified to include some tools that I was interested in learning about. This project is made up of a MacOS machine (hosts Elastic Search, Kibana, and Fleet Server), a Windows 11 machine (the monitored endpoint device), and a Kali Linux machine (simulated threat actor). The lab is equipt with agents to monitor, alert, and respond to events and threat on the endpoint device using the following: **Windows Log Events**, **System metrics**, **Network Packet Capture**, and **Elastic Defend**.
 
-This project sets up a **home cybersecurity lab (SOC - Security Operations Center)** using the **Elastic Stack (ELK)** for **SIEM (Security Information and Event Management)**.  
-It includes two virtual machines: a **Kali Linux attacker VM** and a **vulnerable Windows 11 victim VM**.
 
-The lab demonstrates:
-- Log collection from Windows events
-- Vulnerability configuration for testing
-- Network isolation
-- Kibana dashboards for visualization
-- Basic attack simulation with SIEM notifications
-
-This is a **beginner-friendly setup** to learn threat detection and response using free tools like **UTM** for virtualization and **Elastic** for monitoring.
+This project was inspired by Evermight's Elastic Stack project: `https://github.com/evermight/elastic-stack-docker-part-two`
 
 ### Key Goals
-- Collect and analyze Windows logs in real-time  
-- Simulate attacks from Kali to trigger SIEM alerts  
-- Build dashboards for professional monitoring  
+- Set up a SIEM lab using Docker, Elastic Search, Kibana, Fleet Sever and Elastic Agent.
+- Depoly agents to collect, and prevent events and threats in real-time using a Endpoint Detection and Response system (Elastic Defend_.  
+- Simulate attacks from a malicious Kali Linux machine and learn to prevent them. 
+- Build visualizations and dashboards for endpoint device monitoring and management
+
+## Setup
+
+The setup establishes the foundation for the SOC lab, including virtualization for isolated environments and containerization for the Elastic Stack core components. This ensures a controlled, reproducible environment for testing without risking production systems.
+
+### Crystal Fetch
+- Used Crystal Fetch to securely download the ISO files for Kali Linux and Windows 11.
+- This tool was chosen for its efficiency and integrity checks, ensuring tamper-free media.
+
+- This step is necessary to obtain bootable images for VM creation.
+
+### UTM
+- Set up two virtual machines in UTM (UTM is a free macOS virtualization tool supporting UEFI for modern OSes).
+- **For Kali Linux:**
+  - Create a new VM, attach the Kali ISO, configure bridged networking for external access (to communicate with the host and Windows VM), allocate 4GB RAM/2 cores, and boot from ISO to install.
+- **For Windows 11:**
+  - Similar setup, attach Windows ISO, enable TPM 2.0/Secure Boot in UTM for compatibility, bridged network, 8GB RAM/4 cores, and install.
+- Bridged networking allows the VMs to reach the host MacBook (IP 10.0.0.106) and each other, essential for attack simulation and agent enrollment.
+
+### Docker
+
+- Configure the `docker-compose.yml` with approriate IP address for certificate generation
+- Configured `.env` for passwords, ports (ES:9200, Kibana:5601, Fleet:8220), and license (trial for full features).
+- In the 'personal-soc-lab' directory run `docker compose up -d` to deploy Elastic Search, Kibana and Fleet Server.
+ - The certifcates will be generated and the CA.crt and CA fingerprint will need to be retrivead and saved to complete the fleet server registration and secure communication channel.
+ 
+
+<img width="956" height="412" alt="Screen Shot 2025-11-22 at 5 44 00 PM" src="https://github.com/user-attachments/assets/fad32f3b-78fd-48bb-9212-d6e01e959017" />
 
 
 
 ---
 
-## Prerequisites
+## Installation of Agents
 
-**Hardware:**
-- MacBook Pro or similar (2016 or newer recommended)
-- Minimum **16GB RAM** and **i5/i7 CPU** for smooth VM and Docker performance  
-  *(Older 2016 MBP works but may be slow—allocate resources carefully.)*
+Agents collect and send data to the SIEM, enabling monitoring and response. Configuration includes policies for integrations and certs for secure tunnels, ensuring encrypted communication between VMs and the host stack.
 
-**Software:**
-- macOS 12+ (Monterey or later)
-- [UTM app](https://utmapp.com) – Free virtualization app
-- [Docker Desktop](https://www.docker.com)
-- **CrystalFetch** (for fetching Windows 11 ISO)
-- [Kali Linux ISO](https://www.kali.org)
-- **Windows 11 Enterprise Evaluation ISO** (from CrystalFetch or [Microsoft Eval Center](https://www.microsoft.com/en-us/evalcenter/))
-- [Elastic Winlogbeat ZIP](https://www.elastic.co/downloads/beats/winlogbeat)
+### Fleet Server 
+- Enrolled the Fleet Server (already in Docker) using Kibana-generated token and re-enrolled if needed.
+- On Windows VM, downloaded Elastic Agent 8.8.2 ZIP, extracted, and installed as admin with:
+  - `.\elastic-agent.exe install --url=https://10.0.0.106:8220 --enrollment-token=[token] --certificate-authorities=ca.crt`
+- Imported `ca.crt` to Local Computer Trusted Root store for trust.
+- This creates a secure SSL/TLS tunnel for data transfer.
 
+### Configuring Policies and Integrations
+- In Kibana > Fleet > Agent policies, created **"Windows-lab"** policy.
+- Added integrations:
+  - Windows for log events (security, system, application)
+  - Packetbeat for network packet capture (protocols like HTTP/DNS)
+  - System for metrics (CPU/memory/disk)
+  - Elastic Defend for EDR (malware detection/response)
+- Configured Defend in "Detect/Prevent" mode (trial license), with event collection (processes/files/network).
+- Assigned policy to Windows agent, upgraded for application.
+- Debugged health issues by creating exception lists (e.g., trusted apps with file hashes) to sync artifacts.
 
-
-> **Note:** Keep everything isolated—no real internet exposure to VMs to avoid risks.
-
----
-
-## Project Details
-
-### 1. Set Up Virtual Machines Using UTM
-
-Use **UTM** to create two VMs: **Kali (attacker)** and **Windows 11 (victim)**.
-
-#### Kali Linux VM
-1. Download Kali ISO from [kali.org](https://www.kali.org).
-2. In **UTM**:  
-   `+ > New VM > Virtualize > Linux > Attach Kali ISO`
-3. Configure:
-   - CPU: 1–2 cores  
-   - Memory: 2GB RAM  
-   - Storage: 20GB  
-   - Network: Shared Network (e1000) for setup, then switch to **Emulated VLAN** for isolation  
-4. Start and install Kali (default settings, set password)
-
-#### Windows 11 VM
-1. Install **CrystalFetch** on Mac.  
-2. In CrystalFetch:  
-   `Windows 11 > Intel x86 > Latest build > Edition: Windows Enterprise`
-3. Build and save ISO.  
-4. In **UTM**:  
-   `New VM > Virtualize > Windows > Attach ISO`
-5. Configure:
-   - CPU: 2 cores  
-   - Memory: 4GB RAM  
-   - Storage: 64GB  
-   - Network: Shared Network for setup, then Emulated VLAN for isolation  
-6. Start and install Windows (skip product key).  
-   Set weak user: `labuser / password123`
+<img width="1216" height="472" alt="Screen Shot 2025-11-24 at 3 28 08 PM" src="https://github.com/user-attachments/assets/35216778-a5ca-4e48-97d5-2f7610ae07aa" />
 
 ---
 
-### 2. Isolate the VMs on the Network
+## Testing and Demonstration
 
-To prevent risks, use **UTM’s Emulated VLAN** for internal communication only:
+This phase validates the SOC by simulating attacks from Kali, capturing logs/metrics, and visualizing/responding in Kibana. It demonstrates the lab's ability to detect and mitigate threats.
 
-1. Edit both VMs → Network tab → Change to **Emulated VLAN**  
-2. Save and restart both  
-3. Confirm isolation:
-   - From Kali: `ping <Windows_IP>`  
-   - Windows IP: Run `ipconfig` in CMD  
-   - Should communicate internally, no external internet access
+### Data Views and Visualizations in Kibana
+- Created data view "Packetbeat Network Traffic" on `logs-network_traffic.*-default`.
+- Imported pre-built Packetbeat dashboards for flows/DNS.
+- Built custom viz:
+  - Line chart for traffic volume (sum network.bytes over time)
+  - Donut for top protocols
+  - Bar for IP conversations
+  - Heatmap for port activity
+- Assembled into **"Network Packet Capture Dashboard"** with filters.
+- Similar for system metrics (line for CPU usage) and Windows logs (pie for event IDs).
+- This enables quick anomaly spotting.
+
+### Attack Simulation from Kali
+- Attempted RDP login to Windows (failed, captured in Windows security logs as event 4625).
+- Performed Nmap SYN scan:
+  - `nmap -sS [Windows IP]`
+- Packetbeat logged flows in `logs-network_traffic.flow-default`, showing port probes in heatmap/viz spikes.
+
+### EDR Demonstration
+- Downloaded EICAR test file on Windows—Defend detected malware, alerted in `logs-endpoint.events.*`, and (in Prevent mode) blocked execution.
+- Visualized alerts in Discover/dashboard, showing rule triggers/response actions like quarantine.
+
 
 ---
 
-### 3. Set Up the Elastic Stack (ELK) on Mac
+## Conclusion and What I Learned
 
-1. Install **Docker Desktop**  
-2. In repo directory, create:
-   - `docker-compose.yml`
-   - `logstash.conf`  
-   *(See `configs/` folder – replace `[REDACTED]` values)*
-3. Run:
-   ```bash
-   docker compose up -d
+This project reinforced key cybersecurity concepts through hands-on building.
 
-4. Access Kibana:
-
-Access Kibana at: [http://localhost:5601](http://localhost:5601)  
-
-**Login:** `elastic / <your_password>`  
-
-Generate passwords if needed (see `docs/setup.md`).
-
----
-
-###  4. Install and Configure Winlogbeat on Windows VM
-
-1. Download **Winlogbeat** from [elastic.co/downloads/beats/winlogbeat](https://www.elastic.co/downloads/beats/winlogbeat)  
-2. Unzip to: `C:\Winlogbeat`  
-3. Edit `winlogbeat.yml` (run Notepad as **Administrator**):
+- Docker proved invaluable for containerizing Elastic Stack, allowing easy deployment, isolation, and scalability on my MacBook. I learned its role in reproducible environments, troubleshooting compose files, and managing volumes for persistence—essential for SOC reliability.
+- Certificates taught me generation (via elasticsearch-certutil), SAN/IP inclusion for mismatch fixes, and SSL/TLS importance for secure tunnels. Debugging trust issues highlighted CA imports and fingerprints, emphasizing encryption for protecting data in transit.
+- Elasticsearch impressed with its all-encompassing nature as a SIEM foundation, handling massive logs/metrics via integrations like Packetbeat for network capture and System for metrics. I learned its versatility for search, alerting, and applications beyond security (e.g., app monitoring).
+- The EDR (Elastic Defend) showed why it's crucial for proactive defense, detecting/preventing threats like malware at the endpoint. In this project, it handled responses (alerts/quarantine), teaching policy configs, artifact sync, and integration with Fleet for centralized management—vital for modern SOCs.# Personal SOC Lab
 
 
-`winlogbeat.event_logs:
-    name: Application
-    name: System
-    name: Security
-output.elasticsearch:
-  hosts: ["<your_mac_ip>:9200"]
-  username: "elastic"
-  password: "<your_password>"
-  ssl.verification_mode: none`
-  
-4. In PowerShell (Admin):
-
-`cd C:\Winlogbeat
-.\install-service-winlogbeat.ps1
-Start-Service winlogbeat
-.\winlogbeat.exe setup -e`
-
-### 5. Make Windows Machine Vulnerable
-
-To simulate attacks, make the VM intentionally weak (see docs/vulnerable-setup.md):
-
-Disable Defender:
-Settings → Update & Security → Windows Security → Virus & Threat Protection → Off
-
-Disable Firewall:
-Settings → Firewall → Off for all networks
-
-Disable Windows Updates
-
-Enable Remote Desktop (RDP) and SMBv1
-
-Add weak user accounts (password123 or blank passwords)
