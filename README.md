@@ -50,7 +50,7 @@ Agents collect and send data to the SIEM, enabling monitoring and response. Conf
 ### Fleet Server 
 - Enrolled the Fleet Server (already in Docker) using Kibana-generated token and re-enrolled if needed.
 - On Windows VM, downloaded Elastic Agent 8.8.2 ZIP, extracted, and installed as admin with:
-  - `.\elastic-agent.exe install --url=https://10.0.0.106:8220 --enrollment-token=[token] --certificate-authorities=ca.crt`
+  - `.\elastic-agent.exe install --url=https://[host ip]:8220 --enrollment-token=[token] --certificate-authorities=ca.crt`
 - Imported `ca.crt` to Local Computer Trusted Root store for trust.
 - This creates a secure SSL/TLS tunnel for data transfer.
 
