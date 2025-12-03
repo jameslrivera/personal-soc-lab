@@ -103,3 +103,4 @@ This project reinforced key cybersecurity concepts through hands-on building.
 - The EDR (Elastic Defend) showed why it's crucial for proactive defense, detecting/preventing threats like malware at the endpoint. In this project, it handled responses (alerts/quarantine), teaching policy configs, artifact sync, and integration with Fleet for centralized management—vital for modern SOCs.# Personal SOC Lab
 
 
+
