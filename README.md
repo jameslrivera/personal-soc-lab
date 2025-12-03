@@ -7,7 +7,7 @@ This project was inspired by Evermight's Elastic Stack project: `https://github.
 
 ### Key Goals
 - Set up a SIEM lab using Docker, Elastic Search, Kibana, Fleet Sever and Elastic Agent.
-- Depoly agents to collect, and prevent events and threats in real-time using a Endpoint Detection and Response system (Elastic Defend_.  
+- Depoly agents to collect, and prevent events and threats in real-time using a Endpoint Detection and Response system (Elastic Defend).  
 - Simulate attacks from a malicious Kali Linux machine and learn to prevent them. 
 - Build visualizations and dashboards for endpoint device monitoring and management
 
@@ -16,18 +16,13 @@ This project was inspired by Evermight's Elastic Stack project: `https://github.
 The setup establishes the foundation for the SOC lab, including virtualization for isolated environments and containerization for the Elastic Stack core components. This ensures a controlled, reproducible environment for testing without risking production systems.
 
 ### Crystal Fetch
-- Used Crystal Fetch to securely download the ISO files for Kali Linux and Windows 11.
-- This tool was chosen for its efficiency and integrity checks, ensuring tamper-free media.
+- I ran into some trouble securley downloading the ISO image for the Windows 11 machine that would work with UTM, so I decided to use Crystal Fetch which is a MacOS application used to create Windows installer ISO files and is designed to be compatible with UTM.
 
-- This step is necessary to obtain bootable images for VM creation.
 
 ### UTM
-- Set up two virtual machines in UTM (UTM is a free macOS virtualization tool supporting UEFI for modern OSes).
-- **For Kali Linux:**
-  - Create a new VM, attach the Kali ISO, configure bridged networking for external access (to communicate with the host and Windows VM), allocate 4GB RAM/2 cores, and boot from ISO to install.
-- **For Windows 11:**
-  - Similar setup, attach Windows ISO, enable TPM 2.0/Secure Boot in UTM for compatibility, bridged network, 8GB RAM/4 cores, and install.
-- Bridged networking allows the VMs to reach the host MacBook (IP 10.0.0.106) and each other, essential for attack simulation and agent enrollment.
+- I chose to use UTM to set up the two virtual machines since it is a free and open source virtualization app built specifically for macOS. It makes the VM set up and ISO loading simple as well as supporting bridged network connection which is important for isolation.
+- **Setup:**
+  - Create a new VM, choose virtualize, attach the ISO file , configure bridged networking for external access, allocate 4GB RAM/2 cores, and boot from ISO to install.
 
 ### Docker
 
