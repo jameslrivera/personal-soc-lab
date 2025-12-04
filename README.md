@@ -1,6 +1,6 @@
 # Personal SOC Lab
 
-I created this project to learn about and get hands on expierence with SIEM systems and their tools. This project was built from the ideas of industry standard SOC(Security Operations Center) labs, and modified to include some tools that I was interested in learning about. This project is made up of a MacOS machine (hosts Elastic Search, Kibana, and Fleet Server), a Windows 11 machine (the monitored endpoint device), and a Kali Linux machine (simulated threat actor). The lab is equipt with agents to monitor, alert, and respond to events and threat on the endpoint device using the following: **Windows Log Events**, **System metrics**, **Network Packet Capture**, and **Elastic Defend**.
+I created this project to learn about and get hands on expierence with SIEM systems and their tools. This project was built from the ideas of industry standard SOC(Security Operations Center) labs, and modified to include some tools that I was interested in learning about. This project is made up of a MacOS machine (hosts Elastic Search, Kibana, and Fleet Server), a Windows 11 machine (the monitored endpoint device), and a Kali Linux machine (simulated threat actor). The lab is equipt with agents to monitor, alert, and respond to events and threat on the endpoint device using the following: **Windows Log Events**, **System metrics**, **Network Packet Capture**, and **Elastic Defend**(Endpoint Detection and Response).
 
 
 This project was inspired by Evermight's Elastic Stack project: `https://github.com/evermight/elastic-stack-docker-part-two`
@@ -9,27 +9,34 @@ This project was inspired by Evermight's Elastic Stack project: `https://github.
 - Set up a SIEM lab using Docker, Elastic Search, Kibana, Fleet Sever and Elastic Agent.
 - Depoly agents to collect, and prevent events and threats in real-time using a Endpoint Detection and Response system (Elastic Defend).  
 - Simulate attacks from a malicious Kali Linux machine and learn to prevent them. 
-- Build visualizations and dashboards for endpoint device monitoring and management
+- Build visualizations and dashboards for endpoint device monitoring and management.
 
 ## Setup
 
 The setup establishes the foundation for the SOC lab, including virtualization for isolated environments and containerization for the Elastic Stack core components. This ensures a controlled, reproducible environment for testing without risking production systems.
 
 ### Crystal Fetch
-- I ran into some trouble securley downloading the ISO image for the Windows 11 machine that would work with UTM, so I decided to use Crystal Fetch which is a MacOS application used to create Windows installer ISO files and is designed to be compatible with UTM.
+I ran into some trouble securley downloading the ISO image for the Windows 11 machine that would work with UTM, so I decided to use Crystal Fetch which is a MacOS application used to create Windows installer ISO files and is designed to be compatible with UTM.
+
+**Setup:**
+  - Install CrystalFetch, choose the Windows version you want, select your edition and language, then click Download ISO to automatically fetch the official Windows image.
 
 
 ### UTM
-- I chose to use UTM to set up the two virtual machines since it is a free and open source virtualization app built specifically for macOS. It makes the VM set up and ISO loading simple as well as supporting bridged network connection which is important for isolation.
-- **Setup:**
-  - Create a new VM, choose virtualize, attach the ISO file , configure bridged networking for external access, allocate 4GB RAM/2 cores, and boot from ISO to install.
+I chose to use UTM to set up the two virtual machines since it is a free and open source virtualization app built specifically for MacOS. It makes the VM set up and ISO loading simple as well as supporting bridged network connection which is important for the simulated attacks later.
+
+**Setup:**
+- Create a new VM, choose virtualize, attach the ISO file, configure bridged networking for external access, allocate 4GB RAM/2 cores, and boot from ISO to install.
 
 ### Docker
+Since im using a older MacBook with a legacy Operating System I was afraid of running into dependency issues setting up the project seeing that its componets like Elastic search requires specific Java versions, system libraries, kernel features and others. Docker fixes this problem by isolating all dependencies inside containers, so your MacBook never needs to install anything extra. A feature of Docker that I used many times during this project was its ablility to easily be reset and restarted. You can smoothly wipe volumes, images, files, and start again in minutes.
+
+**Setup:**
 
 - Configure the `docker-compose.yml` with approriate IP address for certificate generation
 - Configured `.env` for passwords, ports (ES:9200, Kibana:5601, Fleet:8220), and license (trial for full features).
 - In the 'personal-soc-lab' directory run `docker compose up -d` to deploy Elastic Search, Kibana and Fleet Server.
- - The certifcates will be generated and the CA.crt and CA fingerprint will need to be retrivead and saved to complete the fleet server registration and secure communication channel.
+ - The certifcates will be generated and the CA.crt and CA fingerprint will need to be retrieved and saved to complete the fleet server registration and secure communication channel.
  
 
 <img width="956" height="412" alt="Screen Shot 2025-11-22 at 5 44 00 PM" src="https://github.com/user-attachments/assets/fad32f3b-78fd-48bb-9212-d6e01e959017" />
@@ -50,15 +57,15 @@ Agents collect and send data to the SIEM, enabling monitoring and response. Conf
 - This creates a secure SSL/TLS tunnel for data transfer.
 
 ### Configuring Policies and Integrations
-- In Kibana > Fleet > Agent policies, created **"Windows-lab"** policy.
-- Added integrations:
-  - Windows for log events (security, system, application)
-  - Packetbeat for network packet capture (protocols like HTTP/DNS)
-  - System for metrics (CPU/memory/disk)
-  - Elastic Defend for EDR (malware detection/response)
+- In Kibana > Fleet > Agent policies, created a new policy for the Windows host > add the integrations:
+  - **Windows** for log events (security, system, application)
+  - **Packetbeat** for network packet capture (protocols like HTTP/DNS)
+  - **System** for metrics (CPU/memory/disk)
+  - **Elastic Defend** for EDR (malware detection/response)
 - Configured Defend in "Detect/Prevent" mode (trial license), with event collection (processes/files/network).
 - Assigned policy to Windows agent, upgraded for application.
 - Debugged health issues by creating exception lists (e.g., trusted apps with file hashes) to sync artifacts.
+add the CA fingerprint and CA certificate
 
 <img width="1216" height="472" alt="Screen Shot 2025-11-24 at 3 28 08 PM" src="https://github.com/user-attachments/assets/35216778-a5ca-4e48-97d5-2f7610ae07aa" />
 
