@@ -74,7 +74,7 @@ add the CA fingerprint and CA certificate
 - On Windows VM, downloaded Elastic Agent 8.8.2 ZIP, extracted, and installed as admin with:
   - `.\elastic-agent.exe install --url=https://[host ip]:8220 --enrollment-token=[token] --certificate-authorities=ca.crt`
   
-  <img width="1216" height="472" alt="Screen Shot 2025-11-24 at 3 28 08 PM" src="https://github.com/user-attachments/assets/35216778-a5ca-4e48-97d5-2f7610ae07aa" />
+<img width="1216" height="472" alt="Screen Shot 2025-11-24 at 3 28 08 PM" src="https://github.com/user-attachments/assets/35216778-a5ca-4e48-97d5-2f7610ae07aa" />
 
 ---
 
