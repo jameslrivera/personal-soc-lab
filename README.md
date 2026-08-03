@@ -79,9 +79,7 @@ add the CA fingerprint and CA certificate
 ---
 
 ## Testing and Demonstration
-
 This phase validates the SOC by simulating attacks from Kali, capturing logs/metrics, and visualizing/responding in Kibana. It demonstrates the lab's ability to detect and mitigate threats.
-
 ### Data Views and Visualizations in Kibana
 - Created data view "Packetbeat Network Traffic" on `logs-network_traffic.*-default`.
 - Imported pre-built Packetbeat dashboards for flows/DNS.
@@ -93,16 +91,31 @@ This phase validates the SOC by simulating attacks from Kali, capturing logs/met
 - Assembled into **"Network Packet Capture Dashboard"** with filters.
 - Similar for system metrics (line for CPU usage) and Windows logs (pie for event IDs).
 - This enables quick anomaly spotting.
-
 ### Attack Simulation from Kali
 - Attempted RDP login to Windows (failed, captured in Windows security logs as event 4625).
 - Performed Nmap SYN scan:
   - `nmap -sS [Windows IP]`
 - Packetbeat logged flows in `logs-network_traffic.flow-default`, showing port probes in heatmap/viz spikes.
-
 ### EDR Demonstration
-- Downloaded EICAR test file on Windows—Defend detected malware, alerted in `logs-endpoint.events.*`, and (in Prevent mode) blocked execution.
-- Visualized alerts in Discover/dashboard, showing rule triggers/response actions like quarantine.
+- Used the **EICAR Anti-Malware Test File** to validate Elastic Defend without introducing real malware into the lab. EICAR is a harmless 68-byte file that security vendors detect by convention, built specifically to confirm an AV/EDR product is installed, running, and enforcing policy.
+- Confirmed the Windows agent policy had Defend set to **Prevent** mode (not Detect-only) so a positive result would mean the file was blocked, not just logged.
+- Downloaded `eicar.exe` from eicar.org to `C:\Users\Public\Downloads` on the Windows VM.
+- Defend intercepted the file on write, before execution. Three indicators confirmed the prevention:
+  - Windows error: `Operation did not complete successfully because the file contains a virus or potentially unwanted software.`
+  - Elastic Security toast notification: **Malware Alert — Elastic Security prevented eicar.exe**
+  - `Public Downloads` folder reported **0 items**, confirming quarantine rather than a file left on disk.
+
+<img width="2164" height="1952" alt="screenshot24" src="https://github.com/user-attachments/assets/b6fc7fac-6aac-4103-850e-e623b68f3f13" />
+
+- Verified the stack side in **Security > Alerts** and Discover against `logs-endpoint.alerts-*`, filtering `event.kind: alert` and `event.code: malicious_file`:
+  - `rule.name` — Malware Prevention Alert
+  - `event.action` — prevention/quarantine action taken
+  - `file.path` and `file.hash.sha256` — file identity for triage and IOC pivoting
+  - `process.*` and `user.name` — process and account context around the write
+- Confirmed the alert timestamp matched the endpoint notification, verifying the TLS tunnel and agent policy were delivering events end to end with no meaningful lag.
+- Reviewed response actions available from the alert flyout (**host isolation**, **Osquery** for live endpoint interrogation) — the containment path an analyst would take on a real detection.
+- This single test validates every layer at once: agent enrolled and healthy, CA trusted and tunnel encrypted, policy pushed from Fleet, artifacts synced, malware model loaded and enforcing, and alerts reaching Elasticsearch and rendering in Kibana. A failure at any one stage would have produced no alert.<img width="2164" height="1952" 
+
 
 
 ---
