@@ -105,7 +105,7 @@ This phase validates the SOC by simulating attacks from Kali, capturing logs/met
   - Elastic Security toast notification: **Malware Alert — Elastic Security prevented eicar.exe**
   - `Public Downloads` folder reported **0 items**, confirming quarantine rather than a file left on disk.
 
-<img width="2159" height="1818" alt="screenshot25" src="https://github.com/user-attachments/assets/2ed94792-f661-43d9-b1ca-3718bcc2e231" />
+<img width="2059" height="1718" alt="screenshot25" src="https://github.com/user-attachments/assets/2ed94792-f661-43d9-b1ca-3718bcc2e231" />
 
 
 
