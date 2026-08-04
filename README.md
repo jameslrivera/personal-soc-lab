@@ -116,7 +116,7 @@ This phase validates the SOC by simulating attacks from Kali, capturing logs/met
   - `process.*` and `user.name` — process and account context around the write
 - Confirmed the alert timestamp matched the endpoint notification, verifying the TLS tunnel and agent policy were delivering events end to end with no meaningful lag.
 - Reviewed response actions available from the alert flyout (**host isolation**, **Osquery** for live endpoint interrogation) — the containment path an analyst would take on a real detection.
-- This single test validates every layer at once: agent enrolled and healthy, CA trusted and tunnel encrypted, policy pushed from Fleet, artifacts synced, malware model loaded and enforcing, and alerts reaching Elasticsearch and rendering in Kibana. A failure at any one stage would have produced no alert.<img width="2164" height="1952" 
+- This single test validates every layer at once: agent enrolled and healthy, CA trusted and tunnel encrypted, policy pushed from Fleet, artifacts synced, malware model loaded and enforcing, and alerts reaching Elasticsearch and rendering in Kibana. A failure at any one stage would have produced no alert. 
 
 
 
