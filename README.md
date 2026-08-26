@@ -79,57 +79,84 @@ add the CA fingerprint and CA certificate
 ---
 
 ## Testing and Demonstration
-This phase validates the SOC by simulating attacks from Kali, capturing logs/metrics, and visualizing/responding in Kibana. It demonstrates the lab's ability to detect and mitigate threats.
-### Data Views and Visualizations in Kibana
-- Created data view "Packetbeat Network Traffic" on `logs-network_traffic.*-default`.
-- Imported pre-built Packetbeat dashboards for flows/DNS.
-- Built custom viz:
-  - Line chart for traffic volume (sum network.bytes over time)
-  - Donut for top protocols
-  - Bar for IP conversations
-  - Heatmap for port activity
-- Assembled into **"Network Packet Capture Dashboard"** with filters.
-- Similar for system metrics (line for CPU usage) and Windows logs (pie for event IDs).
-- This enables quick anomaly spotting.
+
+A healthy agent in Fleet only proves the agent checked in. This section was about verifying that an event on the Windows box actually makes it through the tunnel, gets indexed, and shows up somewhere I can act on it.
+
+### Dashboards
+
+I built the visualizations before running any attacks so I would know what normal looked like first. Idle traffic on the Windows VM was noisier than I expected, and going straight to attacking would have left me no way to separate my traffic from background telemetry.
+
+Created a data view on `logs-network_traffic.*-default`, imported the pre-built Packetbeat dashboards for flows and DNS, then built a few from scratch to understand the queries:
+
+- Line chart summing `network.bytes` for traffic volume
+- Donut for protocol distribution
+- Bar chart for top IP conversations
+- Heatmap for port activity
+
+Assembled into a **Network Packet Capture Dashboard**, plus similar views for system metrics and Windows event IDs. The heatmap is what made the port scan obvious later. Normally it's a few warm cells for the ports Windows actually uses. During a scan it lights up across the range.
+
 ### Attack Simulation from Kali
-- Attempted RDP login to Windows (failed, captured in Windows security logs as event 4625).
-- Performed Nmap SYN scan:
-  - `nmap -sS [Windows IP]`
-- Packetbeat logged flows in `logs-network_traffic.flow-default`, showing port probes in heatmap/viz spikes.
+
+**Failed RDP login.** Attempted authentication and let it fail. Logged as Windows event 4625 with the source IP attached, which confirmed the Windows integration was pulling the security channel and not just system and application.
+
+**Nmap SYN scan.** Ran `nmap -sS [Windows IP]`. Packetbeat captured the flows in `logs-network_traffic.flow-default` and the port heatmap spiked.
+
+The pair was useful because the same kind of activity looks completely different depending on where you watch from. The RDP attempt was one clean log line with a username and a source. The scan was hundreds of flow records that only meant anything in aggregate.
+
 ### EDR Demonstration
-- Used the **EICAR Anti-Malware Test File** to validate Elastic Defend without introducing real malware into the lab. EICAR is a harmless 68-byte file that security vendors detect by convention, built specifically to confirm an AV/EDR product is installed, running, and enforcing policy.
-- Confirmed the Windows agent policy had Defend set to **Prevent** mode (not Detect-only) so a positive result would mean the file was blocked, not just logged.
-- Downloaded `eicar.exe` from eicar.org to `C:\Users\Public\Downloads` on the Windows VM.
-- Defend intercepted the file on write, before execution. Three indicators confirmed the prevention:
-  - Windows error: `Operation did not complete successfully because the file contains a virus or potentially unwanted software.`
-  - Elastic Security toast notification: **Malware Alert — Elastic Security prevented eicar.exe**
-  - `Public Downloads` folder reported **0 items**, confirming quarantine rather than a file left on disk.
+
+Used the **EICAR Anti-Malware Test File** instead of real malware. EICAR is a harmless 68-byte file that vendors detect by convention, built to confirm a product is installed and enforcing policy without putting anything dangerous on the machine.
+
+Confirmed Defend was in **Prevent** mode rather than Detect-only first, so a positive result would mean the file was blocked and not just logged.
+
+Downloaded `eicar.exe` to `C:\Users\Public\Downloads`. Defend caught it on write, before execution. Three indicators confirmed it:
+
+- Windows error: `Operation did not complete successfully because the file contains a virus or potentially unwanted software.`
+- Elastic Security notification: **Malware Alert — Elastic Security prevented eicar.exe**
+- Public Downloads reported **0 items**, meaning quarantined rather than left on disk
 
 <img width="2059" height="1718" alt="screenshot25" src="https://github.com/user-attachments/assets/2ed94792-f661-43d9-b1ca-3718bcc2e231" />
 
+An endpoint notification doesn't prove anything reached Elasticsearch, so I verified the stack side in **Security > Alerts** and Discover against `logs-endpoint.alerts-*`, filtering `event.kind: alert` and `event.code: malicious_file`:
 
+| Field | What it gives you |
+|---|---|
+| `rule.name` | Malware Prevention Alert |
+| `event.action` | Prevention or quarantine action taken |
+| `file.path`, `file.hash.sha256` | File identity for triage and IOC pivoting |
+| `process.*`, `user.name` | Process and account context around the write |
 
-- Verified the stack side in **Security > Alerts** and Discover against `logs-endpoint.alerts-*`, filtering `event.kind: alert` and `event.code: malicious_file`:
-  - `rule.name` — Malware Prevention Alert
-  - `event.action` — prevention/quarantine action taken
-  - `file.path` and `file.hash.sha256` — file identity for triage and IOC pivoting
-  - `process.*` and `user.name` — process and account context around the write
-- Confirmed the alert timestamp matched the endpoint notification, verifying the TLS tunnel and agent policy were delivering events end to end with no meaningful lag.
-- Reviewed response actions available from the alert flyout (**host isolation**, **Osquery** for live endpoint interrogation) — the containment path an analyst would take on a real detection.
-- This single test validates every layer at once: agent enrolled and healthy, CA trusted and tunnel encrypted, policy pushed from Fleet, artifacts synced, malware model loaded and enforcing, and alerts reaching Elasticsearch and rendering in Kibana. A failure at any one stage would have produced no alert. 
+The alert timestamp matched the endpoint notification, confirming the TLS tunnel and agent policy were delivering with no meaningful lag. I also reviewed the response actions in the alert flyout, **host isolation** and **Osquery**, since that's the containment path an analyst would take on a real detection.
 
+One test validated every layer at once: agent enrolled, CA trusted, tunnel encrypted, policy pushed from Fleet, artifacts synced, malware model enforcing, alerts reaching Elasticsearch. A failure anywhere in that chain would have produced nothing.
 
+### Mapping to MITRE ATT&CK
+
+Counting rules tells you how much you built. Mapping to techniques tells you what you would actually catch.
+
+| Technique | ID | Tactic | Test | Data source | Result |
+|---|---|---|---|---|---|
+| Active Scanning: Scanning IP Blocks | T1595.001 | Reconnaissance | `nmap -sS` | `logs-network_traffic.flow-default` | Detected |
+| Network Service Discovery | T1046 | Discovery | Port enumeration | Packetbeat flows | Detected |
+| Remote Services: RDP | T1021.001 | Lateral Movement | Failed RDP auth | Windows event 4625 | Detected |
+| Brute Force | T1110 | Credential Access | Repeated failed logons | Windows event 4625 | Partial |
+| Ingress Tool Transfer | T1105 | Command and Control | eicar.exe download | `logs-endpoint.events.file-*` | Detected |
+| User Execution: Malicious File | T1204.002 | Execution | eicar.exe write attempt | `logs-endpoint.alerts-*` | Prevented |
+
+Brute force is partial because I logged the individual failures but never wrote a rule correlating them. One 4625 is noise. Five in ten seconds from one source is an attack, and catching that needs a threshold rule.
+
+The coverage is also lopsided. Reconnaissance, initial access, and execution are well covered. Persistence, defense evasion, and exfiltration are close to blank, and those are the quiet techniques that matter once someone is already inside.
 
 ---
 
 ## Conclusion and What I Learned
 
-This project reinforced key cybersecurity concepts through hands-on building.
+Building this end to end taught me more than any single tool would have. The stack itself came together fast, but getting the pieces to trust each other and actually talk was where the real work was, and most of what I learned came from things breaking rather than from things working the first time.
 
-- Docker proved invaluable for containerizing Elastic Stack, allowing easy deployment, isolation, and scalability on my MacBook. I learned its role in reproducible environments, troubleshooting compose files, and managing volumes for persistence—essential for SOC reliability.
-- Certificates taught me generation (via elasticsearch-certutil), SAN/IP inclusion for mismatch fixes, and SSL/TLS importance for secure tunnels. Debugging trust issues highlighted CA imports and fingerprints, emphasizing encryption for protecting data in transit.
-- Elasticsearch impressed with its all-encompassing nature as a SIEM foundation, handling massive logs/metrics via integrations like Packetbeat for network capture and System for metrics. I learned its versatility for search, alerting, and applications beyond security (e.g., app monitoring).
-- The EDR (Elastic Defend) showed why it's crucial for proactive defense, detecting/preventing threats like malware at the endpoint. In this project, it handled responses (alerts/quarantine), teaching policy configs, artifact sync, and integration with Fleet for centralized management—vital for modern SOCs.# Personal SOC Lab
+- Docker was the right call for the wrong reason: I picked it to avoid dependency issues on an older MacBook, but what I actually got was the ability to wipe volumes and start clean in minutes, which meant I could break things on purpose instead of being careful.
+- Certificates took longer than everything else combined, between getting the SAN and IP entries right so the agent would stop rejecting the connection and finding out I had imported the CA to the user store instead of the local machine store.
+- Elasticsearch is bigger than the security use case, and once the data view and index pattern model clicked, building visualizations felt like querying a database rather than using a security tool.
+- Detection is a tuning problem rather than an installation problem, since standing up Defend took an afternoon but getting it healthy meant building exception lists with file hashes so the artifacts would sync.
 
 
 
